@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Dashboard - Parkinson’s Prediction</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="navbar">
+  <div class="logo">🧠 ParkinsonAI</div>
+  <div>
+    <a href="index.html">Home</a>
+    <a href="dashboard.html">Dashboard</a>
+  </div>
+</div>
+
+<div class="container">
+
+  <h1>📊 Prediction Dashboard</h1>
+
+  <!-- Options Row -->
+  <div style="display:flex; gap:20px; flex-wrap:wrap;">
+
+    <!-- CSV -->
+    <div class="card" style="flex:1; min-width:280px;">
+      <h3>📄 Option 1: Upload CSV Dataset</h3>
+      <input type="file" id="fileInput" accept=".csv">
+      <br><br>
+      <button onclick="uploadFile()">Upload & Predict</button>
+      <p class="help-text">CSV must contain the required voice features.</p>
+    </div>
+
+    <!-- MIC -->
+    <div class="card" style="flex:1; min-width:280px;">
+      <h3>🎙️ Option 2: Speak for 10 Seconds</h3>
+      <button onclick="startRecording()">🎤 Start Recording (10s)</button>
+      <div class="progress-wrap">
+        <div class="progress-bar" id="progressBar"></div>
+      </div>
+      <p id="micStatus" class="help-text"></p>
+    </div>
+
+  </div>
+
+  <!-- Results -->
+  <div class="card" style="margin-top:20px;">
+    <h2>🧠 Prediction Results</h2>
+    <p id="status"></p>
+    <div id="results"></div>
+  </div>
+
+</div>
+
+<script>
+function toggleContent(id) {
+  const el = document.getElementById(id);
+  el.style.display = el.style.display === "none" ? "block" : "none";
+}
+
+function downloadReport(r) {
+  fetch("http://127.0.0.1:5000/download_report", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(r)
+  })
+  .then(res => res.blob())
+  .then(blob => {
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = r.person + "_Parkinson_Report.txt";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+  });
+}
+
+function uploadFile() {
+  const fileInput = document.getElementById("fileInput");
+  const statusEl = document.getElementById("status");
+  const resultsDiv = document.getElementById("results");
+
+  if (!fileInput.files.length) {
+    alert("Please select a CSV file.");
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append("file", fileInput.files[0]);
+
+  statusEl.innerText = "⏳ Processing CSV...";
+  resultsDiv.innerHTML = "";
+
+  fetch("http://127.0.0.1:5000/predict", { method: "POST", body: formData })
+    .then(res => res.json())
+    .then(data => {
+      if (data.error) {
+        statusEl.innerText = "❌ " + data.error;
+        return;
+      }
+
+      statusEl.innerText = `Processed ${data.total_people} people from ${data.total_recordings} recordings.`;
+
+      data.results.forEach((r, index) => {
+        let badgeClass = "low";
+        if (r.risk_level === "Medium") badgeClass = "medium";
+        if (r.risk_level === "High") badgeClass = "high";
+
+        let featuresHtml = "<ul class='feature-list'>";
+        r.top_features.forEach(f => {
+          featuresHtml += `<li>${f.feature}</li>`;
+        });
+        featuresHtml += "</ul>";
+
+        const contentId = "content_" + index;
+
+        resultsDiv.innerHTML += `
+          <div class="details-card">
+            <div class="summary" onclick="toggleContent('${contentId}')">
+              <span>👤 ${r.person} — ${r.result}</span>
+              <span class="badge ${badgeClass}">${r.risk_level} Risk</span>
+            </div>
+            <div class="content" id="${contentId}">
+              <p><strong>Recordings:</strong> ${r.recordings}</p>
+              <p><strong>Probability:</strong> ${r.probability}%</p>
+              <p><strong>Doctor Suggestion:</strong> ${r.doctor_suggestion}</p>
+              ${featuresHtml}
+              <button onclick='downloadReport(${JSON.stringify(r)})'>📄 Download Report</button>
+            </div>
+          </div>
+        `;
+      });
+    });
+}
+
+let mediaRecorder;
+let audioChunks = [];
+
+function startRecording() {
+  const micStatus = document.getElementById("micStatus");
+  const statusEl = document.getElementById("status");
+  const resultsDiv = document.getElementById("results");
+  const progressBar = document.getElementById("progressBar");
+
+  audioChunks = [];
+  micStatus.innerText = "🎙️ Recording... Speak now (10 seconds)";
+  statusEl.innerText = "";
+  resultsDiv.innerHTML = "";
+  progressBar.style.width = "0%";
+
+  navigator.mediaDevices.getUserMedia({ audio: true })
+    .then(stream => {
+      mediaRecorder = new MediaRecorder(stream);
+      mediaRecorder.start();
+
+      mediaRecorder.ondataavailable = event => {
+        if (event.data.size > 0) {
+          audioChunks.push(event.data);
+        }
+      };
+
+      let elapsed = 0;
+      const interval = setInterval(() => {
+        elapsed += 1;
+        progressBar.style.width = (elapsed * 10) + "%";
+        if (elapsed >= 10) clearInterval(interval);
+      }, 1000);
+
+      setTimeout(() => {
+        mediaRecorder.stop();
+      }, 10000);
+
+      mediaRecorder.onstop = () => {
+        // No voice case
+        if (audioChunks.length === 0) {
+          micStatus.innerText = "⚠️ No voice detected. Please try again.";
+          return;
+        }
+
+        const audioBlob = new Blob(audioChunks, { type: "audio/webm" });
+
+        if (audioBlob.size < 1000) {
+          micStatus.innerText = "⚠️ No voice detected. Please try again.";
+          return;
+        }
+
+        micStatus.innerText = "⏳ Processing recorded audio...";
+        statusEl.innerText = "⏳ Analyzing voice...";
+
+        const formData = new FormData();
+        formData.append("file", audioBlob, "mic.webm");
+
+        fetch("http://127.0.0.1:5000/predict_mic", {
+          method: "POST",
+          body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+          if (data.error) {
+            statusEl.innerText = "❌ " + data.error;
+            return;
+          }
+
+          let badgeClass = "low";
+          if (data.risk_level === "Medium") badgeClass = "medium";
+          if (data.risk_level === "High") badgeClass = "high";
+
+          statusEl.innerText = "🎤 Mic Prediction Result:";
+
+          resultsDiv.innerHTML = `
+            <div class="details-card">
+              <div class="summary">
+                <span>${data.result}</span>
+                <span class="badge ${badgeClass}">${data.risk_level} Risk</span>
+              </div>
+              <div class="content" style="display:block;">
+                <p><strong>Probability:</strong> ${data.probability}%</p>
+                <p>This result is based on your 10-second voice sample.</p>
+              </div>
+            </div>
+          `;
+        });
+      };
+    })
+    .catch(() => {
+      alert("Microphone access denied!");
+    });
+}
+</script>
+
+</body>
+</html>

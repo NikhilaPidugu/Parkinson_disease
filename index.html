@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+ <meta charset="UTF-8">
+  <title>Parkinson’s Disease Prediction System</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="navbar">
+  <div class="logo">🧠 ParkinsonAI</div>
+  <div>
+    <a href="index.html">Home</a>
+    <a href="dashboard.html">Dashboard</a>
+    <a href="analysis.html">Analysis</a>
+  </div>
+</div>
+
+<!-- Hero Section -->
+<div class="hero">
+  <div class="hero-text">
+    <h1>Parkinson’s Disease Prediction System</h1>
+    <p>
+      Parkinson’s disease is a progressive neurological disorder that affects movement,
+      speech, and coordination. Early detection plays a crucial role in managing symptoms
+      and improving the quality of life of patients.
+    </p>
+    <p>
+      This project uses machine learning to analyze voice-based biomedical data and provide
+      an early indication of Parkinson’s disease in a non-invasive and efficient way.
+    </p>
+    <button onclick="goToDashboard()">🚀 Go to Dashboard</button>
+  </div>
+
+  <div class="hero-image">
+    <img src="bg.jpg" alt="Parkinsons">
+  </div>
+</div>
+
+<!-- Info Section -->
+<div class="section">
+  <h2>About This Project</h2>
+  <div class="cards">
+    <div class="info-card">
+      <h3>🧠 Problem</h3>
+      <p>
+        Parkinson’s disease is difficult to diagnose in early stages using only clinical observation.
+        Traditional methods can be time-consuming and subjective.
+      </p>
+    </div>
+    <div class="info-card">
+      <h3>🤖 Solution</h3>
+      <p>
+        We use machine learning models trained on voice features to automatically predict
+        the likelihood of Parkinson’s disease from speech data.
+      </p>
+    </div>
+    <div class="info-card">
+      <h3>📊 Features</h3>
+      <p>
+        Upload dataset, get predictions, see risk level, view explainable AI (SHAP) features,
+        and download detailed reports.
+      </p>
+    </div>
+    <div class="info-card">
+      <h3>⚠️ Disclaimer</h3>
+      <p>
+        This system is for academic and research purposes only and is not a substitute
+        for professional medical diagnosis.
+      </p>
+    </div>
+  </div>
+</div>
+
+<div class="footer-note">
+  © 2026 Parkinson’s Disease Prediction System — Academic Project
+</div>
+
+<script>
+function goToDashboard() {
+  window.location.href = "dashboard.html";
+}
+</script>
+
+</body>
+</html>
